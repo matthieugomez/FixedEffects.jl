@@ -15,9 +15,20 @@ struct FixedEffect{R <: AbstractVector{<:Integer}, I <: AbstractVector{<:Real}}
 	end
 end
 
+# Store refs as Int32 (refs lie in [0, ngroups]) to halve the dominant memory stream read by the
+# scatter/gather kernels on every solver iteration. GroupedArrays always builds Int64 groups (it
+# needs signed sentinels during construction); narrowing here, where FixedEffect manufactures its
+# own ref representation, lets every backend (CPU/GPU) and solve_coefficients! stream the smaller
+# type. The rare ngroups > typemax(Int32) keeps the original integer type.
+function _narrow_refs(groups::AbstractVector{<:Integer}, ngroups::Integer)
+	(eltype(groups) === Int32 || ngroups > typemax(Int32)) && return groups
+	return Vector{Int32}(groups)
+end
+
 function FixedEffect(args...; interaction::AbstractVector = uweights(length(args[1])))
 	g = GroupedArray(args..., sort = nothing)
-	FixedEffect{typeof(g.groups), typeof(interaction)}(g.groups, interaction, g.ngroups)
+	refs = _narrow_refs(g.groups, g.ngroups)
+	FixedEffect{typeof(refs), typeof(interaction)}(refs, interaction, g.ngroups)
 end
 
 Base.show(io::IO, ::FixedEffect) = print(io, "Fixed Effects")
