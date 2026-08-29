@@ -19,6 +19,7 @@ MetalExt = "Metal"
 
 [compat]
 GroupedArrays = "0.3"
+Metal = "1"
 PrecompileTools = "1"
 StatsBase = "0.33, 0.34"
 julia = "1.10"
